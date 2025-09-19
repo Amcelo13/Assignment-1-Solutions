@@ -19,7 +19,9 @@ public class HertzScraper {
     // Base domain; if Hertz changes domain redirects, pass a results URL as arg 0
     private static final String BASE = "https://www.hertz.ca";
     // Change to true for headless; leave false while developing
-    private static final boolean HEADLESS = false;
+    private static final boolean HEADLESS = false; // Changed back to false so you can see the browser
+    // Debug mode - print more info
+    private static final boolean DEBUG = false; // Turned off for faster execution
 
     private WebDriver driver;
     private WebDriverWait wait;
@@ -60,10 +62,24 @@ public class HertzScraper {
         options.addArguments("--start-maximized");
         options.addArguments("--disable-gpu");
         options.addArguments("--window-size=1400,900");
+        options.addArguments("--no-sandbox"); // Added for more stable execution
+        options.addArguments("--disable-dev-shm-usage"); // Added for more stable execution
+        
+        // Add user agent to avoid detection as automated browser
+        options.addArguments("--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36");
+        
+        // Disable images to speed up loading
+        if (HEADLESS) {
+            options.addArguments("--blink-settings=imagesEnabled=false");
+        }
 
         System.setProperty("webdriver.chrome.driver", "/usr/local/bin/chromedriver");
         driver = new ChromeDriver(options);
         wait = new WebDriverWait(driver, Duration.ofSeconds(20));
+        
+        if (DEBUG) {
+            System.out.println("WebDriver started with options: " + options.asMap());
+        }
         // Note: Do not mix implicit and explicit waits; we rely on explicit waits only here.
     }
 
@@ -113,14 +129,34 @@ public class HertzScraper {
             pickupDateBox.click();
             sleep(1000);
 
-            // Select October 10, 2025 from calendar
+            // Fast calendar date selection for pickup
             try {
-                WebElement calendar = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("/html/body/div[3]")));
-                WebElement oct10 = calendar.findElement(By.xpath(".//td[text()='10' and not(contains(@class, 'empty'))]"));
-                oct10.click();
-                sleep(500);
+                sleep(500); // Reduced wait time
+                
+                // Try to find calendar quickly
+                WebElement calendar = null;
+                try {
+                    calendar = wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector(".calendar")));
+                } catch (Exception e) {
+                    calendar = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("/html/body/div[3]")));
+                }
+                
+                if (calendar != null) {
+                    // Find and select first available future date quickly
+                    List<WebElement> futureDates = calendar.findElements(
+                        By.xpath(".//td[not(contains(@class, 'past')) and not(contains(@class, 'disabled')) and not(contains(@class, 'empty'))]"));
+                    
+                    if (!futureDates.isEmpty()) {
+                        WebElement dateToSelect = futureDates.get(Math.min(10, futureDates.size() - 1));
+                        String dateText = dateToSelect.getText();
+                        System.out.println("Selecting pickup date: " + dateText);
+                        
+                        dateToSelect.click();
+                        sleep(300); // Minimal wait
+                    }
+                }
             } catch (Exception e) {
-                System.out.println("Calendar interaction failed, skipping date selection");
+                System.out.println("Fast pickup date selection failed: " + e.getMessage());
             }
 
             // Set pickup time to 1:00 PM (13:00)
@@ -133,14 +169,35 @@ public class HertzScraper {
             dropoffDateBox.click();
             sleep(1000);
 
-            // Select October 11, 2025 from calendar
+            // Fast calendar date selection for dropoff
             try {
-                WebElement calendar = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("/html/body/div[3]")));
-                WebElement oct11 = calendar.findElement(By.xpath(".//td[text()='11' and not(contains(@class, 'empty'))]"));
-                oct11.click();
-                sleep(500);
+                sleep(500); // Reduced wait time
+                
+                // Try to find calendar quickly
+                WebElement calendar = null;
+                try {
+                    calendar = wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector(".calendar")));
+                } catch (Exception e) {
+                    calendar = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("/html/body/div[3]")));
+                }
+                
+                if (calendar != null) {
+                    // Find and select first available future date quickly
+                    List<WebElement> futureDates = calendar.findElements(
+                        By.xpath(".//td[not(contains(@class, 'past')) and not(contains(@class, 'disabled')) and not(contains(@class, 'empty'))]"));
+                    
+                    if (!futureDates.isEmpty()) {
+                        // Select a slightly later date for dropoff
+                        WebElement dateToSelect = futureDates.get(Math.min(11, futureDates.size() - 1));
+                        String dateText = dateToSelect.getText();
+                        System.out.println("Selecting dropoff date: " + dateText);
+                        
+                        dateToSelect.click();
+                        sleep(300); // Minimal wait
+                    }
+                }
             } catch (Exception e) {
-                System.out.println("Calendar interaction failed for dropoff date");
+                System.out.println("Fast dropoff date selection failed: " + e.getMessage());
             }
 
             // Set dropoff time to 1:00 PM (13:00)
@@ -148,12 +205,56 @@ public class HertzScraper {
             Select dropoffTime = new Select(dropoffTimeSelect);
             dropoffTime.selectByValue("13:00");
 
-            // Click "View Vehicles" button
-            WebElement viewVehiclesBtn = wait.until(ExpectedConditions.elementToBeClickable(By.cssSelector("button.res-submit")));
-            viewVehiclesBtn.click();
+            // Click "View Vehicles" button with multiple possible selectors
+            try {
+                List<By> submitButtonSelectors = Arrays.asList(
+                    By.cssSelector("button.res-submit"),
+                    By.cssSelector("button[type='submit']"),
+                    By.xpath("//button[contains(text(), 'View') or contains(text(), 'Search') or contains(text(), 'Find')]"),
+                    By.cssSelector("[class*='submit'], [class*='search-button']")
+                );
+                
+                boolean buttonClicked = false;
+                for (By selector : submitButtonSelectors) {
+                    try {
+                        WebElement button = wait.until(ExpectedConditions.elementToBeClickable(selector));
+                        scrollIntoView(button);
+                        System.out.println("Found submit button: " + button.getText());
+                        
+                        // Try regular click, then JavaScript click if needed
+                        try {
+                            button.click();
+                            buttonClicked = true;
+                        } catch (Exception clickErr) {
+                            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", button);
+                            buttonClicked = true;
+                        }
+                        
+                        if (buttonClicked) {
+                            break;
+                        }
+                    } catch (Exception ignored) {
+                        // Try the next selector
+                    }
+                }
+                
+                if (buttonClicked) {
+                    System.out.println("Form filled and submitted successfully");
+                } else {
+                    System.out.println("Could not find or click submit button, submitting form directly");
+                    // Try to submit the form directly as a last resort
+                    List<WebElement> forms = driver.findElements(By.tagName("form"));
+                    if (!forms.isEmpty()) {
+                        ((JavascriptExecutor) driver).executeScript("arguments[0].submit();", forms.get(0));
+                    }
+                }
+            } catch (Exception e) {
+                System.out.println("Error submitting form: " + e.getMessage());
+            }
             
-            System.out.println("Form filled and submitted successfully");
-            sleep(3000); // Wait for page navigation
+            // Quick wait for page navigation
+            sleep(2000); // Reduced wait time
+            System.out.println("Navigation complete, current URL: " + driver.getCurrentUrl());
 
         } catch (Exception e) {
             System.out.println("Form interaction failed: " + e.getMessage());
@@ -178,16 +279,41 @@ public class HertzScraper {
     private List<Vehicle> scrapeAllPages() {
         List<Vehicle> results = new ArrayList<>();
 
-        // Wait for at least one vehicle card to be present
+        // Wait for at least one vehicle card to be present - add more potential selectors
         List<By> cardRoots = Arrays.asList(
                 By.cssSelector("div.vehicle.vehCardRD"),
                 By.cssSelector("div.gtm-vehicle"),
-                By.cssSelector("article.dual")
+                By.cssSelector("article.dual"),
+                // Add more potential selectors for vehicle cards based on common patterns
+                By.cssSelector("[class*='vehicle-card']"),
+                By.cssSelector("[class*='car-card']"),
+                By.cssSelector("[class*='car-item']"),
+                By.cssSelector("[class*='vehicle-item']"),
+                By.cssSelector(".car, .vehicle"),
+                By.xpath("//div[contains(@class, 'vehicle') or contains(@class, 'car')]")
         );
 
-        boolean anyFound = waitForAny(cardRoots, 20);
+        // Increase wait time and add better logging
+        System.out.println("Waiting for vehicle cards to appear on results page...");
+        boolean anyFound = waitForAny(cardRoots, 30);  // Increase timeout to 30 seconds
+        
         if (!anyFound) {
-            System.out.println("No vehicle cards found on page.");
+            System.out.println("No vehicle cards found on page. Current URL: " + driver.getCurrentUrl());
+            
+            // Print the page source to help diagnose issues
+            System.out.println("Page title: " + driver.getTitle());
+            System.out.println("Page source excerpt (first 300 chars): " + 
+                driver.getPageSource().substring(0, Math.min(300, driver.getPageSource().length())));
+            
+            // Try looking for error messages or "no results" indicators
+            List<WebElement> possibleMessages = driver.findElements(
+                By.xpath("//*[contains(text(), 'no vehicle') or contains(text(), 'No vehicle') or " +
+                         "contains(text(), 'not available') or contains(text(), 'try different')]"));
+            
+            if (!possibleMessages.isEmpty()) {
+                System.out.println("Found potential 'no results' message: " + possibleMessages.get(0).getText());
+            }
+            
             return results;
         }
 
@@ -419,6 +545,42 @@ public class HertzScraper {
 
     private void scrollIntoView(WebElement el) {
         ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({block:'center'});", el);
+    }
+    
+    private void clickElementWithFallback(WebElement el) {
+        try {
+            // First attempt regular click
+            el.click();
+        } catch (Exception e) {
+            try {
+                // If regular click fails, try JavaScript click
+                System.out.println("Regular click failed, trying JavaScript click");
+                ((JavascriptExecutor) driver).executeScript("arguments[0].click();", el);
+            } catch (Exception e2) {
+                System.out.println("JavaScript click also failed: " + e2.getMessage());
+                throw e2; // Re-throw to be caught by caller
+            }
+        }
+    }
+    
+    private void printDomInfo(WebElement el, String description) {
+        if (el == null) return;
+        System.out.println("DOM INFO for " + description);
+        try {
+            String tag = el.getTagName();
+            String id = el.getAttribute("id");
+            String className = el.getAttribute("class");
+            String html = (String) ((JavascriptExecutor) driver).executeScript(
+                    "return arguments[0].outerHTML;", el);
+            
+            System.out.println("Tag: " + tag);
+            System.out.println("ID: " + (id == null ? "none" : id));
+            System.out.println("Class: " + (className == null ? "none" : className));
+            System.out.println("HTML snippet: " + (html == null ? "unavailable" : 
+                               (html.length() > 200 ? html.substring(0, 200) + "..." : html)));
+        } catch (Exception e) {
+            System.out.println("Error getting DOM info: " + e.getMessage());
+        }
     }
 
     private void writeCsv(String fileName, List<Vehicle> list) throws IOException {

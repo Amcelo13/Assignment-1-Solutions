@@ -1,0 +1,91 @@
+// Here's a simplified version of the HertzScraper class focused just on the calendar date selection
+// You can use this code to replace parts of your HertzScraper.java file
+
+// The key issue seems to be with the date selection code, where October 10, 2025 is shown as a past date
+// Here's a more robust approach to date selection:
+
+// --------- Replace in the trySimpleSearchFlow method ---------
+
+// After clicking on pickup date box:
+WebElement pickupDateBox = wait.until(ExpectedConditions.elementToBeClickable(By.id("pickup-date-box")));
+pickupDateBox.click();
+sleep(1000);
+
+// Find and navigate to the correct month (October 2025)
+try {
+    WebElement calendar = wait.until(ExpectedConditions.presenceOfElementLocated(
+        By.cssSelector(".calendar, .ui-datepicker, [class*='calendar']")));
+    
+    // First check if we need to navigate to a future month
+    boolean foundCorrectMonth = false;
+    
+    // Try to find a "next month" button and click until we reach October 2025
+    WebElement nextMonth = null;
+    try {
+        nextMonth = calendar.findElement(By.cssSelector(".next, .ui-datepicker-next, [class*='next']"));
+    } catch (Exception e) {
+        // Try different selectors if the first one fails
+        try {
+            nextMonth = calendar.findElement(By.xpath(".//span[contains(@class, 'next') or contains(@class, 'arrow')]"));
+        } catch (Exception e2) {
+            System.out.println("Could not find next month button");
+        }
+    }
+    
+    // If we found the next month button, use it to navigate to October 2025
+    if (nextMonth != null) {
+        // Click next month until we find October 2025 (or for a maximum of 12 clicks)
+        for (int i = 0; i < 12; i++) {
+            // Check if current month header contains "October 2025" or similar
+            try {
+                WebElement monthHeader = calendar.findElement(By.cssSelector(".month-name, .ui-datepicker-title"));
+                String headerText = monthHeader.getText().toLowerCase();
+                System.out.println("Current month header: " + headerText);
+                
+                if (headerText.contains("october") && headerText.contains("2025")) {
+                    foundCorrectMonth = true;
+                    break;
+                }
+            } catch (Exception e) {
+                System.out.println("Could not read month header");
+            }
+            
+            // Click next month button
+            try {
+                nextMonth.click();
+                sleep(500);
+                // Re-find the next button as the DOM might have been refreshed
+                nextMonth = calendar.findElement(By.cssSelector(".next, .ui-datepicker-next, [class*='next']"));
+            } catch (Exception e) {
+                System.out.println("Could not click next month button: " + e.getMessage());
+                break;
+            }
+        }
+    }
+    
+    // Now find and select an available date
+    List<WebElement> availableDates = calendar.findElements(
+        By.xpath(".//td[not(contains(@class, 'disabled')) and not(contains(@class, 'empty')) and not(contains(@class, 'past'))]"));
+    
+    if (availableDates.size() > 0) {
+        // Select a date in the middle of the month
+        int index = Math.min(availableDates.size() / 2, availableDates.size() - 1);
+        WebElement dateToSelect = availableDates.get(index);
+        String dateText = dateToSelect.getText();
+        System.out.println("Selecting date: " + dateText);
+        
+        scrollIntoView(dateToSelect);
+        try {
+            dateToSelect.click();
+        } catch (Exception e) {
+            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", dateToSelect);
+        }
+    } else {
+        System.out.println("No available dates found in the calendar");
+    }
+} catch (Exception e) {
+    System.out.println("Calendar interaction failed: " + e.getMessage());
+    e.printStackTrace();
+}
+
+// Continue with setting the pickup time, etc.
