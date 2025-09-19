@@ -72,13 +72,20 @@ public class HertzScraper {
     }
 
     private void acceptCookiesIfPresent() {
-        // OneTrust cookie banner is common; try several locators defensively
+        // Handle multiple cookie banner types
         List<By> cookieButtons = Arrays.asList(
+                // Your specific cookie dialog
+                By.cssSelector("a.cc-btn.cc-allow"),
+                By.cssSelector("a[aria-label='allow cookies']"),
+                // OneTrust cookie banner (original)
                 By.id("onetrust-accept-btn-handler"),
                 By.cssSelector("#onetrust-accept-btn-handler"),
                 By.cssSelector("button#truste-consent-button"),
                 By.cssSelector("button[aria-label='Accept All']"),
-                By.xpath("//button[contains(.,'Accept')]")
+                By.xpath("//button[contains(.,'Accept')]"),
+                // Generic accept patterns
+                By.xpath("//a[contains(.,'Accept Cookies')]"),
+                By.xpath("//a[contains(@aria-label,'allow cookies')]")
         );
         for (By b : cookieButtons) {
             try {
@@ -93,36 +100,65 @@ public class HertzScraper {
     }
 
     private void trySimpleSearchFlow() {
-        // The reservation form often changes; this is a best-effort interaction to satisfy Task 1 “interact with elements”.
-        // It clicks into inputs if found and attempts a “search” or “select vehicle” button.
-        // If selectors change, pass a direct results URL as CLI arg to skip this.
-        List<By> pickupInputs = Arrays.asList(
-                By.cssSelector("input[name='pickupLocation']"),
-                By.cssSelector("input[aria-label*='Pick-up']"),
-                By.cssSelector("input[id*='pickup']"),
-                By.cssSelector("input[placeholder*='Pick']")
-        );
-        clickFirstVisible(pickupInputs);
+        // Fill out the Hertz reservation form with specific values
+        try {
+            // Fill pickup location - Toronto Pearson International Airport
+            WebElement pickupInput = wait.until(ExpectedConditions.elementToBeClickable(By.id("pickup-location")));
+            pickupInput.clear();
+            pickupInput.sendKeys("Toronto Pearson International Airport");
+            sleep(1000); // Wait for autocomplete
 
-        // Try date openers
-        List<By> dateOpeners = Arrays.asList(
-                By.cssSelector("button[aria-label*='Pick-up date']"),
-                By.cssSelector("button[aria-label*='Drop-off date']"),
-                By.cssSelector("button[aria-label*='Date']"),
-                By.cssSelector("input[name*='pickupDay']")
-        );
-        clickFirstVisible(dateOpeners);
+            // Click on pickup date to open calendar
+            WebElement pickupDateBox = wait.until(ExpectedConditions.elementToBeClickable(By.id("pickup-date-box")));
+            pickupDateBox.click();
+            sleep(1000);
 
-        // Try any search/continue button
-        List<By> searchButtons = Arrays.asList(
-                By.cssSelector("button[type='submit']"),
-                By.xpath("//button[contains(.,'Search')]"),
-                By.xpath("//button[contains(.,'Select')]"),
-                By.xpath("//button[contains(.,'Find')]")
-        );
-        clickFirstVisible(searchButtons);
+            // Select October 10, 2025 from calendar
+            try {
+                WebElement calendar = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("/html/body/div[3]")));
+                WebElement oct10 = calendar.findElement(By.xpath(".//td[text()='10' and not(contains(@class, 'empty'))]"));
+                oct10.click();
+                sleep(500);
+            } catch (Exception e) {
+                System.out.println("Calendar interaction failed, skipping date selection");
+            }
 
-        // If navigation didn’t happen, do nothing; we still proceed to scrape if the results are already present
+            // Set pickup time to 1:00 PM (13:00)
+            WebElement pickupTimeSelect = driver.findElement(By.cssSelector("select[name='pickupTime']"));
+            Select pickupTime = new Select(pickupTimeSelect);
+            pickupTime.selectByValue("13:00");
+
+            // Click on dropoff date to open calendar
+            WebElement dropoffDateBox = wait.until(ExpectedConditions.elementToBeClickable(By.id("dropoff-date-box")));
+            dropoffDateBox.click();
+            sleep(1000);
+
+            // Select October 11, 2025 from calendar
+            try {
+                WebElement calendar = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("/html/body/div[3]")));
+                WebElement oct11 = calendar.findElement(By.xpath(".//td[text()='11' and not(contains(@class, 'empty'))]"));
+                oct11.click();
+                sleep(500);
+            } catch (Exception e) {
+                System.out.println("Calendar interaction failed for dropoff date");
+            }
+
+            // Set dropoff time to 1:00 PM (13:00)
+            WebElement dropoffTimeSelect = driver.findElement(By.cssSelector("select[name='dropoffTime']"));
+            Select dropoffTime = new Select(dropoffTimeSelect);
+            dropoffTime.selectByValue("13:00");
+
+            // Click "View Vehicles" button
+            WebElement viewVehiclesBtn = wait.until(ExpectedConditions.elementToBeClickable(By.cssSelector("button.res-submit")));
+            viewVehiclesBtn.click();
+            
+            System.out.println("Form filled and submitted successfully");
+            sleep(3000); // Wait for page navigation
+
+        } catch (Exception e) {
+            System.out.println("Form interaction failed: " + e.getMessage());
+            // If navigation didn't happen, do nothing; we still proceed to scrape if the results are already present
+        }
     }
 
     private void clickFirstVisible(List<By> locators) {
