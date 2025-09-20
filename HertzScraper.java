@@ -216,12 +216,19 @@ public class HertzScraper {
                                 bags = "N/A";
                             }
                             
-                            // Add vehicle data to CSV
-                            String vehicleInfo = vehicleCode + " - " + vehicleName + " (" + vehicleDescription + ")";
-                            String vehicleDetails = "Price: " + priceAmount + " | " + transmission + " | " + passengers + " | " + bags;
-                            allScrapedData.add(new String[]{page1Title.replace(",", ""), "Vehicle Option " + (i+1), vehicleInfo.replace(",", ""), vehicleDetails.replace(",", "")});
-                            
-                            System.out.println("Extracted vehicle " + (i+1) + ": " + vehicleCode + " - " + vehicleName + " - " + priceAmount);
+                            // Only add vehicle data to CSV if we have valid information
+                            if (!vehicleName.equals("N/A") && !vehicleName.isEmpty() && 
+                                !priceAmount.equals("N/A") && !priceAmount.isEmpty() && 
+                                !priceAmount.trim().equals("")) {
+                                
+                                String vehicleInfo = vehicleCode + " - " + vehicleName + " (" + vehicleDescription + ")";
+                                String vehicleDetails = "Price: " + priceAmount + " | " + transmission + " | " + passengers + " | " + bags;
+                                allScrapedData.add(new String[]{page1Title.replace(",", ""), "Vehicle Option " + (i+1), vehicleInfo.replace(",", ""), vehicleDetails.replace(",", "")});
+                                
+                                System.out.println("Extracted vehicle " + (i+1) + ": " + vehicleCode + " - " + vehicleName + " - " + priceAmount);
+                            } else {
+                                System.out.println("Skipping vehicle " + (i+1) + " due to missing data: " + vehicleName + " | " + priceAmount);
+                            }
                             
                         } catch (Exception e) {
                             System.out.println("Could not extract vehicle " + (i+1) + " details: " + e.getMessage());
