@@ -20,7 +20,7 @@ public class HertzScraper {
             WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(5));
             Alert alert = wait.until(ExpectedConditions.alertIsPresent());
             System.out.println("Alert text: " + alert.getText());
-            alert.accept(); // Accept the alert
+            alert.accept(); 
             System.out.println("Alert accepted.");
         } catch (NoAlertPresentException e) {
             System.out.println("No alert present.");
@@ -33,7 +33,6 @@ public class HertzScraper {
         System.setProperty("webdriver.chrome.driver", "/usr/local/bin/chromedriver");
 
         ChromeOptions options = new ChromeOptions();
-        // options.addArguments("--headless"); // Commented out to show browser window
         options.addArguments("--no-sandbox");
         options.addArguments("--disable-dev-shm-usage");
 
