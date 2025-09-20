@@ -41,7 +41,7 @@ public class HertzScraper {
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
 
         List<String[]> allScrapedData = new ArrayList<>();
-        allScrapedData.add(new String[]{"Page Title", "Main Heading", "Link Text", "Link URL"});
+        allScrapedData.add(new String[]{"Page Title", "Section", "Vehicle Info", "Details"});
 
         try {
             // --- Page 1: Main Car Rental Page ---
@@ -138,115 +138,112 @@ public class HertzScraper {
                 System.out.println("Error filling out booking form: " + e.getMessage());
             }
 
-            // String page1Title = driver.getTitle();
-            // WebElement page1MainHeading = wait.until(ExpectedConditions.visibilityOfElementLocated(By.tagName("h1")));
-            // String page1HeadingText = page1MainHeading.getText();
-            // allScrapedData.add(new String[]{page1Title.replace(",", ""), page1HeadingText.replace(",", ""), "", ""});
+            // Get page title and heading after form submission
+            String page1Title = driver.getTitle();
+            try {
+                WebElement page1MainHeading = wait.until(ExpectedConditions.visibilityOfElementLocated(By.tagName("h1")));
+                String page1HeadingText = page1MainHeading.getText();
+                allScrapedData.add(new String[]{page1Title.replace(",", ""), page1HeadingText.replace(",", ""), "", ""});
+            } catch (Exception e) {
+                System.out.println("Could not find main heading: " + e.getMessage());
+                allScrapedData.add(new String[]{page1Title.replace(",", ""), "Vehicle Selection Page", "", ""});
+            }
 
-            // // Extract vehicle information if browse vehicles was successful
-            // try {
-            //     // Wait for vehicle results to load
-            //     Thread.sleep(5000);
+            // Extract vehicle information if browse vehicles was successful
+            try {
+                // Wait for vehicle results to load
+                Thread.sleep(5000);
                 
-            //     // Look for vehicle cards or results
-            //     List<WebElement> vehicleElements = driver.findElements(By.xpath("//div[contains(@class, 'vehicle-card') or contains(@class, 'car-item') or contains(@class, 'vehicle-item')]"));
-            //     if (!vehicleElements.isEmpty()) {
-            //         System.out.println("Found " + vehicleElements.size() + " vehicle options");
-            //         for (int i = 0; i < Math.min(5, vehicleElements.size()); i++) { // Limit to first 5 vehicles
-            //             WebElement vehicle = vehicleElements.get(i);
-            //             try {
-            //                 String vehicleName = vehicle.findElement(By.xpath(".//h3 | .//h4 | .//*[contains(@class, 'vehicle-name')]")).getText();
-            //                 allScrapedData.add(new String[]{page1Title.replace(",", ""), "Vehicle Option", vehicleName.replace(",", ""), ""});
-            //             } catch (Exception e) {
-            //                 System.out.println("Could not extract vehicle " + (i+1) + " details");
-            //             }
-            //         }
-            //     } else {
-            //         System.out.println("No vehicle results found on page");
-            //     }
-            // } catch (Exception e) {
-            //     System.out.println("Error extracting vehicle information: " + e.getMessage());
-            // }
+                // Look for vehicle cards using the actual class structure
+                List<WebElement> vehicleElements = driver.findElements(By.xpath("//li[contains(@class, 'vehicle-list__item')]"));
+                if (!vehicleElements.isEmpty()) {
+                    System.out.println("Found " + vehicleElements.size() + " vehicle options");
+                    for (int i = 0; i < vehicleElements.size(); i++) { // Extract all vehicles
+                        WebElement vehicle = vehicleElements.get(i);
+                        try {
+                            // Extract vehicle details based on the actual HTML structure
+                            String vehicleCode = "";
+                            String vehicleName = "";
+                            String vehicleDescription = "";
+                            String priceAmount = "";
+                            String transmission = "";
+                            String passengers = "";
+                            String bags = "";
+                            
+                            try {
+                                vehicleCode = vehicle.findElement(By.xpath(".//p[@class='vehicle-item__tour-info mb-0']")).getText();
+                            } catch (Exception e) {
+                                vehicleCode = "N/A";
+                            }
+                            
+                            try {
+                                vehicleName = vehicle.findElement(By.xpath(".//h2[@class='mb-0']")).getText();
+                            } catch (Exception e) {
+                                vehicleName = "N/A";
+                            }
+                            
+                            try {
+                                vehicleDescription = vehicle.findElement(By.xpath(".//p[@class='descriptor mb-0']")).getText();
+                            } catch (Exception e) {
+                                vehicleDescription = "N/A";
+                            }
+                            
+                            try {
+                                // Extract price (symbol + unit + fraction)
+                                String symbol = vehicle.findElement(By.xpath(".//span[@class='rs-price-tag__symbol']")).getText();
+                                String unit = vehicle.findElement(By.xpath(".//span[@class='rs-price-tag__unit']")).getText();
+                                String fraction = vehicle.findElement(By.xpath(".//span[@class='rs-price-tag__fraction']")).getText();
+                                priceAmount = symbol + " " + unit + fraction;
+                            } catch (Exception e) {
+                                try {
+                                    // Alternative: look for "Call For Availability"
+                                    priceAmount = vehicle.findElement(By.xpath(".//p[contains(@class, 'car-item__price-details-message')]")).getText();
+                                } catch (Exception e2) {
+                                    priceAmount = "N/A";
+                                }
+                            }
+                            
+                            try {
+                                List<WebElement> attributes = vehicle.findElements(By.xpath(".//section[@class='car-item__vehicle-attributes-item']//span[@class='descriptor mb-0']"));
+                                if (attributes.size() >= 3) {
+                                    transmission = attributes.get(0).getText();
+                                    passengers = attributes.get(1).getText();
+                                    bags = attributes.get(2).getText();
+                                }
+                            } catch (Exception e) {
+                                transmission = "N/A";
+                                passengers = "N/A";
+                                bags = "N/A";
+                            }
+                            
+                            // Add vehicle data to CSV
+                            String vehicleInfo = vehicleCode + " - " + vehicleName + " (" + vehicleDescription + ")";
+                            String vehicleDetails = "Price: " + priceAmount + " | " + transmission + " | " + passengers + " | " + bags;
+                            allScrapedData.add(new String[]{page1Title.replace(",", ""), "Vehicle Option " + (i+1), vehicleInfo.replace(",", ""), vehicleDetails.replace(",", "")});
+                            
+                            System.out.println("Extracted vehicle " + (i+1) + ": " + vehicleCode + " - " + vehicleName + " - " + priceAmount);
+                            
+                        } catch (Exception e) {
+                            System.out.println("Could not extract vehicle " + (i+1) + " details: " + e.getMessage());
+                        }
+                    }
+                } else {
+                    System.out.println("No vehicle results found on page");
+                }
+            } catch (Exception e) {
+                System.out.println("Error extracting vehicle information: " + e.getMessage());
+            }
 
-            // // Extract links from main page (e.g., Car Rental Deals)
-            // List<WebElement> mainPageLinks = driver.findElements(By.xpath("//a[contains(@href, \'car-rental-deals\')]"));
-            // for (WebElement link : mainPageLinks) {
-            //     allScrapedData.add(new String[]{page1Title.replace(",", ""), page1HeadingText.replace(",", ""), link.getText().replace(",", ""), link.getAttribute("href").replace(",", "")});
-            // }
-
-            // // --- Page 2: Canada Car Rental Locations ---
-            // System.out.println("Navigating to Canada Car Rental Locations...");
-            // driver.get("https://www.enterprise.ca/en/car-rental/locations/canada.html");
-            // handleAlert(driver);
-
-            // try {
-            //     WebElement closeCookieButton = wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//button[contains(text(), \'CLOSE\')]")));
-            //     closeCookieButton.click();
-            //     System.out.println("Cookie banner closed on Canada page.");
-            // } catch (Exception e) {
-            //     System.out.println("Cookie banner not found or not clickable on Canada page.");
-            // }
-
-            // String page2Title = driver.getTitle();
-            // WebElement page2MainHeading = wait.until(ExpectedConditions.visibilityOfElementLocated(By.tagName("h1")));
-            // String page2HeadingText = page2MainHeading.getText();
-            // allScrapedData.add(new String[]{page2Title.replace(",", ""), page2HeadingText.replace(",", ""), "", ""});
-
-            // // Extract city links from Canada page
-            // // Updated XPath to be more specific to the location list
-            // List<WebElement> canadaCityLinks = driver.findElements(By.xpath("//div[contains(@class, \'cmp-location-finder__results-list\')]//a"));
-            // if (canadaCityLinks.isEmpty()) {
-            //     // Fallback to a broader search if the specific class is not found or links are empty
-            //     canadaCityLinks = driver.findElements(By.xpath("//a[contains(@href, \'/en/car-rental/locations/canada/\') and not(contains(@href, \'.html\'))]"));
-            // }
-            // for (WebElement link : canadaCityLinks) {
-            //     if (!link.getText().isEmpty() && !link.getText().contains("View Details")) { // Filter out generic links
-            //         allScrapedData.add(new String[]{page2Title.replace(",", ""), page2HeadingText.replace(",", ""), link.getText().replace(",", ""), link.getAttribute("href").replace(",", "")});
-            //     }
-            // }
-
-            // // --- Page 3: International Car Rental Locations (Handle 404) ---
-            // System.out.println("Attempting to navigate to International Car Rental Locations...");
-            // String internationalUrl = "https://www.enterprise.ca/en/car-rental/locations/international.html";
-            // driver.get(internationalUrl);
-            // handleAlert(driver);
-
-            // if (driver.getTitle().contains("404 Page Not Found")) {
-            //     System.out.println("International Car Rental Locations page resulted in 404. Skipping data extraction for this page.");
-            //     allScrapedData.add(new String[]{"404 Page Not Found", "Error 404: Page Not Found", "", internationalUrl});
-            // } else {
-            //     try {
-            //         WebElement closeCookieButton = wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//button[contains(text(), \'CLOSE\')]")));
-            //         closeCookieButton.click();
-            //         System.out.println("Cookie banner closed on International page.");
-            //     } catch (Exception e) {
-            //         System.out.println("Cookie banner not found or not clickable on International page.");
-            //     }
-
-            //     String page3Title = driver.getTitle();
-            //     WebElement page3MainHeading = wait.until(ExpectedConditions.visibilityOfElementLocated(By.tagName("h1")));
-            //     String page3HeadingText = page3MainHeading.getText();
-            //     allScrapedData.add(new String[]{page3Title.replace(",", ""), page3HeadingText.replace(",", ""), "", ""});
-
-            //     // Extract country links from International page
-            //     List<WebElement> internationalCountryLinks = driver.findElements(By.xpath("//a[contains(@href, \'/en/car-rental/locations/international/\') and not(contains(@href, \".html\"))]"));
-            //     for (WebElement link : internationalCountryLinks) {
-            //         if (!link.getText().isEmpty()) {
-            //             allScrapedData.add(new String[]{page3Title.replace(",", ""), page3HeadingText.replace(",", ""), link.getText().replace(",", ""), link.getAttribute("href").replace(",", "")});
-            //         }
-            //     }
-            // }
-
-            // // Save all scraped data to a CSV file
-            // try (FileWriter csvWriter = new FileWriter("scraped_data_multi_page.csv")) {
-            //     for (String[] rowData : allScrapedData) {
-            //         csvWriter.append(String.join(",", rowData));
-            //         csvWriter.append("\n");
-            //     }
-            //     System.out.println("All data saved to scraped_data_multi_page.csv");
-            // } catch (IOException e) {
-            //     System.err.println("Error writing to CSV file: " + e.getMessage());
-            // }
+            // Save all scraped data to a CSV file
+            try (FileWriter csvWriter = new FileWriter("hertz_vehicles.csv")) {
+                for (String[] rowData : allScrapedData) {
+                    csvWriter.append(String.join(",", rowData));
+                    csvWriter.append("\n");
+                }
+                System.out.println("All vehicle data saved to hertz_vehicles.csv");
+            } catch (IOException e) {
+                System.err.println("Error writing to CSV file: " + e.getMessage());
+            }
 
         }
         
