@@ -44,125 +44,109 @@ public class SwiftRide {
      * Task 3: Advanced Selenium - Handle vehicle image pop-ups/modals
      * Shows how to interact with modal dialogs and wait for specific elements
      */
-    private static void handleVehicleImagePopups(WebDriver driver, WebDriverWait wait, List<WebElement> vehicleElements, 
-                                                List<String[]> allScrapedData, String pageTitle) {
-        try {
-            // Demonstrate clicking on vehicle images to open pop-ups (first 3 vehicles to avoid too much time)
-            int vehiclesToTest = Math.min(3, vehicleElements.size());
-            System.out.println("Testing image pop-ups for first " + vehiclesToTest + " vehicles...");
-            
-            for (int i = 0; i < vehiclesToTest; i++) {
+  private static void handleVehicleImagePopups(WebDriver driver, WebDriverWait wait, List<WebElement> vehicleElements, 
+                                            List<String[]> allScrapedData, String pageTitle) {
+    try {
+        int vehiclesToTest = Math.min(3, vehicleElements.size());
+        System.out.println("Testing image pop-ups for first " + vehiclesToTest + " vehicles...");
+        
+        for (int i = 0; i < vehiclesToTest; i++) {
+            try {
+                WebElement vehicle = vehicleElements.get(i);
+                
+                // Get vehicle name for logging
+                String vehicleName = "Unknown";
                 try {
-                    WebElement vehicle = vehicleElements.get(i);
-                    
-                    // Find the clickable vehicle image or "View Details" button
-                    WebElement imageButton = null;
+                    vehicleName = vehicle.findElement(By.xpath(".//h3[contains(@class, 'text-[#57E667]')]")).getText();
+                } catch (Exception e) {
                     try {
-                        // Try to find the "View Details" button first
-                        imageButton = vehicle.findElement(By.xpath(".//button[contains(.//span, 'View Details')]"));
-                    } catch (Exception e) {
-                        try {
-                            // Try to find the vehicle image
-                            imageButton = vehicle.findElement(By.xpath(".//img"));
-                        } catch (Exception e2) {
-                            // Try to click on the entire card
-                            imageButton = vehicle;
-                        }
+                        vehicleName = vehicle.findElement(By.xpath(".//h3 | .//h2 | .//h1")).getText();
+                    } catch (Exception e2) {
+                        vehicleName = "Vehicle " + (i + 1);
                     }
-                    
-                    // Get vehicle name for logging using SwiftRide specific selector
-                    String vehicleName = "Unknown";
-                    try {
-                        vehicleName = vehicle.findElement(By.xpath(".//h3[contains(@class, 'text-[#57E667]')]")).getText();
-                    } catch (Exception e) {
-                        try {
-                            vehicleName = vehicle.findElement(By.xpath(".//h3 | .//h2 | .//h1")).getText();
-                        } catch (Exception e2) {
-                            vehicleName = "Vehicle " + (i + 1);
-                        }
-                    }
-                    
-                    System.out.println("Clicking on element for: " + vehicleName);
+                }
+                
+                System.out.println("Attempting to open popup for: " + vehicleName);
+                
+                // SPECIFIC FIX: Target your exact popup opener button
+                try {
+                    WebElement popupOpener = wait.until(ExpectedConditions.elementToBeClickable(
+                        By.xpath("//*[@id='cw-bubble-holder']/button[1]")));
                     
                     // Advanced Selenium: Scroll element into view before clicking
-                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", imageButton);
-                    Thread.sleep(1000); // Small pause for smooth scrolling
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", popupOpener);
+                    Thread.sleep(1000);
                     
-                    // Click the element to open pop-up or navigate
-                    imageButton.click();
+                    // Click to open the specific popup
+                    popupOpener.click();
+                    System.out.println("✓ Clicked cw-bubble-holder button[1] for " + vehicleName);
                     
-                    // Advanced Selenium: Wait for modal/pop-up to appear or page change
+                    // Wait for popup content to appear
+                    Thread.sleep(2000);
+                    
+                    // Try to extract popup content
                     try {
-                        // Check if a modal appeared
+                        WebElement popupContent = driver.findElement(By.id("cw-bubble-holder"));
+                        String modalContent = popupContent.getText();
+                        if (!modalContent.trim().isEmpty()) {
+                            allScrapedData.add(new String[]{pageTitle, "Vehicle Modal " + (i+1), vehicleName + " - Modal Content", modalContent.replace(",", "").substring(0, Math.min(100, modalContent.length())) + "..."});
+                        }
+                        System.out.println("✓ Extracted popup content for " + vehicleName);
+                    } catch (Exception e) {
+                        System.out.println("Could not extract popup content: " + e.getMessage());
+                    }
+                    
+                    // SPECIFIC FIX: Close using your exact close button
+                    try {
+                        WebElement closeButton = wait.until(ExpectedConditions.elementToBeClickable(
+                            By.xpath("//*[@id='cw-bubble-holder']/button[2]")));
+                        closeButton.click();
+                        System.out.println("✓ Closed popup using cw-bubble-holder button[2]");
+                        
+                        // Wait for popup to disappear
+                        wait.until(ExpectedConditions.invisibilityOfElementLocated(By.id("cw-bubble-holder")));
+                        
+                    } catch (Exception closeException) {
+                        System.out.println("Could not close popup with specific button: " + closeException.getMessage());
+                    }
+                    
+                } catch (Exception popupException) {
+                    System.out.println("Specific cw-bubble-holder popup not found, trying vehicle interaction for " + vehicleName);
+                    
+                    // Fallback to original vehicle interaction logic
+                    try {
+                        WebElement imageButton = vehicle.findElement(By.xpath(".//img"));
+                        imageButton.click();
+                        Thread.sleep(2000);
+                        
+                        // Check for any modal that appears
                         WebElement modal = wait.until(ExpectedConditions.presenceOfElementLocated(
                             By.xpath("//div[contains(@class, 'modal') or contains(@class, 'dialog') or contains(@class, 'overlay') or contains(@class, 'popup') or contains(@class, 'lightbox')]")
                         ));
-                        System.out.println("✓ Pop-up opened successfully for " + vehicleName);
                         
-                        // Extract any additional information from the modal
+                        // Try to close with generic methods
                         try {
-                            String modalContent = modal.getText();
-                            if (!modalContent.trim().isEmpty()) {
-                                allScrapedData.add(new String[]{pageTitle, "Vehicle Modal " + (i+1), vehicleName + " - Modal Content", modalContent.replace(",", "").substring(0, Math.min(100, modalContent.length())) + "..."});
-                            }
+                            modal.sendKeys(Keys.ESCAPE);
                         } catch (Exception e) {
-                            System.out.println("Could not extract modal content: " + e.getMessage());
+                            ((JavascriptExecutor) driver).executeScript("document.body.click();");
                         }
                         
-                        // Advanced Selenium: Close the modal using various methods
-                        try {
-                            // Method 1: Look for close button
-                            WebElement closeButton = driver.findElement(By.xpath("//button[contains(@class, 'close') or contains(@aria-label, 'close') or contains(@aria-label, 'Close') or contains(text(), '×') or contains(text(), 'Close')]"));
-                            closeButton.click();
-                            System.out.println("✓ Closed modal using close button");
-                        } catch (Exception e1) {
-                            try {
-                                // Method 2: Press ESC key
-                                modal.sendKeys(Keys.ESCAPE);
-                                System.out.println("✓ Closed modal using ESC key");
-                            } catch (Exception e2) {
-                                try {
-                                    // Method 3: Click outside modal (on overlay)
-                                    ((JavascriptExecutor) driver).executeScript("document.body.click();");
-                                    System.out.println("✓ Closed modal by clicking outside");
-                                } catch (Exception e3) {
-                                    System.out.println("Could not close modal, continuing...");
-                                }
-                            }
-                        }
-                        
-                        // Wait for modal to disappear
-                        wait.until(ExpectedConditions.invisibilityOf(modal));
-                        
-                    } catch (Exception modalException) {
-                        // Check if we navigated to a new page instead
-                        String currentUrl = driver.getCurrentUrl();
-                        if (!currentUrl.contains("/cars")) {
-                            System.out.println("Navigated to new page: " + currentUrl);
-                            allScrapedData.add(new String[]{pageTitle, "Vehicle Details " + (i+1), vehicleName + " - Details Page", currentUrl});
-                            
-                            // Navigate back to the main cars page
-                            driver.navigate().back();
-                            wait.until(ExpectedConditions.presenceOfElementLocated(By.tagName("body")));
-                            System.out.println("✓ Navigated back to main cars page");
-                        } else {
-                            System.out.println("No modal appeared or different interaction for " + vehicleName + ": " + modalException.getMessage());
-                        }
+                    } catch (Exception fallbackException) {
+                        System.out.println("No popup interaction possible for " + vehicleName);
                     }
-                    
-                    Thread.sleep(2000); // Pause between clicks
-                    
-                } catch (Exception vehicleException) {
-                    System.out.println("Could not interact with vehicle " + (i+1) + ": " + vehicleException.getMessage());
                 }
+                
+                Thread.sleep(2000); // Pause between vehicles
+                
+            } catch (Exception vehicleException) {
+                System.out.println("Could not interact with vehicle " + (i+1) + ": " + vehicleException.getMessage());
             }
-            
-        } catch (Exception e) {
-            System.out.println("Error in handleVehicleImagePopups: " + e.getMessage());
         }
+        
+    } catch (Exception e) {
+        System.out.println("Error in handleVehicleImagePopups: " + e.getMessage());
     }
-
-
+}
 
     /**
      * Multi-page website navigation and data extraction
@@ -387,6 +371,7 @@ public class SwiftRide {
                     By.xpath("//input[@placeholder='Search by make, model, or year...']")));
                 searchInput.clear(); // Remove any existing text
                 searchInput.sendKeys("honda"); // Type the search term
+                searchInput.sendKeys(Keys.ENTER); // Submit the search
                 Thread.sleep(2000); // Wait for search results to load
                 System.out.println("Search completed for 'honda'");
             } catch (Exception e) {
