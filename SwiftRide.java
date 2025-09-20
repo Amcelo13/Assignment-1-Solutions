@@ -151,7 +151,7 @@ public class SwiftRide {
     }
 
     // Task 2: Crawl multiple pages from the same website
-    private static void crawlMultiplePages(WebDriver driver, WebDriverWait wait, List<String[]> allScrapedData) {
+    private static void crawlMultiplePages(WebDriver driver, WebDriverWait wait, List<String[]> multiPageData) {
         String[] pagesToCrawl = {
             "https://swiftride.net/",
             "https://swiftride.net/how-it-works",
@@ -169,10 +169,6 @@ public class SwiftRide {
                 System.out.println("Crawling page " + (i+1) + ": " + pagesToCrawl[i]);
                 driver.get(pagesToCrawl[i]);
                 
-                
-                // // Handle any alerts
-                // handleAlert(driver);
-                
                 // Wait for page to load completely
                 wait.until(ExpectedConditions.presenceOfElementLocated(By.tagName("body")));
                 
@@ -184,32 +180,32 @@ public class SwiftRide {
                     WebElement mainHeading = wait.until(ExpectedConditions.presenceOfElementLocated(
                         By.xpath("//h1 | //h2[1] | //div[contains(@class, 'hero')] | //div[contains(@class, 'title')]")));
                     String headingText = mainHeading.getText();
-                    allScrapedData.add(new String[]{pageTitle.replace(",", ""), pageDescriptions[i] + " - Main Heading", headingText.replace(",", ""), pagesToCrawl[i]});
+                    multiPageData.add(new String[]{pageTitle.replace(",", ""), pageDescriptions[i] + " - Main Heading", headingText.replace(",", ""), pagesToCrawl[i]});
                     System.out.println("Main heading: " + headingText);
                 } catch (Exception e) {
                     System.out.println("Could not find main heading on " + pageDescriptions[i]);
-                    allScrapedData.add(new String[]{pageTitle.replace(",", ""), pageDescriptions[i] + " - Main Heading", "No heading found", pagesToCrawl[i]});
+                    multiPageData.add(new String[]{pageTitle.replace(",", ""), pageDescriptions[i] + " - Main Heading", "No heading found", pagesToCrawl[i]});
                 }
                 
                 // Page-specific data extraction
                 if (i == 0) { // Home Page
-                    extractHomePageData(driver, wait, allScrapedData, pageTitle);
+                    extractHomePageData(driver, wait, multiPageData, pageTitle);
                 } else if (i == 1) { // About Page
-                    extractAboutPageData(driver, wait, allScrapedData, pageTitle);
+                    extractAboutPageData(driver, wait, multiPageData, pageTitle);
                 } else if (i == 2) { // Contact Page
-                    extractContactPageData(driver, wait, allScrapedData, pageTitle);
+                    extractContactPageData(driver, wait, multiPageData, pageTitle);
                 }
                 
                 Thread.sleep(3000); // Pause between pages
                 
             } catch (Exception e) {
                 System.out.println("Error crawling page " + (i+1) + ": " + e.getMessage());
-                allScrapedData.add(new String[]{"Error", pageDescriptions[i], "Failed to load page", e.getMessage()});
+                multiPageData.add(new String[]{"Error", pageDescriptions[i], "Failed to load page", e.getMessage()});
             }
         }
     }
     
-    private static void extractHomePageData(WebDriver driver, WebDriverWait wait, List<String[]> allScrapedData, String pageTitle) {
+    private static void extractHomePageData(WebDriver driver, WebDriverWait wait, List<String[]> multiPageData, String pageTitle) {
         try {
             // Look for featured cars or promotional content
             List<WebElement> featuredItems = driver.findElements(By.xpath("//div[contains(@class, 'featured')] | //div[contains(@class, 'promo')] | //div[contains(@class, 'hero')] | //section"));
@@ -222,7 +218,7 @@ public class SwiftRide {
                     
                     if (!itemText.isEmpty() && itemText.length() > 10) {
                         String shortText = itemText.length() > 100 ? itemText.substring(0, 100) + "..." : itemText;
-                        allScrapedData.add(new String[]{pageTitle.replace(",", ""), "Home Featured " + (i+1), shortText.replace(",", ""), ""});
+                        multiPageData.add(new String[]{pageTitle.replace(",", ""), "Home Featured " + (i+1), shortText.replace(",", ""), ""});
                         System.out.println("Found home feature: " + shortText);
                     }
                 } catch (Exception e) {
@@ -234,7 +230,7 @@ public class SwiftRide {
         }
     }
     
-    private static void extractAboutPageData(WebDriver driver, WebDriverWait wait, List<String[]> allScrapedData, String pageTitle) {
+    private static void extractAboutPageData(WebDriver driver, WebDriverWait wait, List<String[]> multiPageData, String pageTitle) {
         try {
             // Look for about sections or company information
             List<WebElement> aboutSections = driver.findElements(By.xpath("//p | //div[contains(@class, 'about')] | //div[contains(@class, 'content')] | //section"));
@@ -244,7 +240,7 @@ public class SwiftRide {
                 try {
                     String text = section.getText().trim();
                     if (!text.isEmpty() && text.length() > 30 && text.length() < 300 && sectionCount < 3) {
-                        allScrapedData.add(new String[]{pageTitle.replace(",", ""), "About Section " + (sectionCount+1), text.replace(",", ""), ""});
+                        multiPageData.add(new String[]{pageTitle.replace(",", ""), "About Section " + (sectionCount+1), text.replace(",", ""), ""});
                         System.out.println("Found about info: " + text.substring(0, Math.min(50, text.length())) + "...");
                         sectionCount++;
                     }
@@ -257,7 +253,7 @@ public class SwiftRide {
         }
     }
     
-    private static void extractContactPageData(WebDriver driver, WebDriverWait wait, List<String[]> allScrapedData, String pageTitle) {
+    private static void extractContactPageData(WebDriver driver, WebDriverWait wait, List<String[]> multiPageData, String pageTitle) {
         try {
             // Look for contact information
             List<WebElement> contactInfo = driver.findElements(By.xpath("//div[contains(@class, 'contact')] | //address | //p[contains(text(), 'Phone') or contains(text(), 'Email') or contains(text(), 'Address')]"));
@@ -269,7 +265,7 @@ public class SwiftRide {
                     String contactText = contact.getText().trim();
                     
                     if (!contactText.isEmpty()) {
-                        allScrapedData.add(new String[]{pageTitle.replace(",", ""), "Contact Info " + (i+1), contactText.replace(",", ""), ""});
+                        multiPageData.add(new String[]{pageTitle.replace(",", ""), "Contact Info " + (i+1), contactText.replace(",", ""), ""});
                         System.out.println("Found contact info: " + contactText);
                     }
                 } catch (Exception e) {
@@ -478,10 +474,6 @@ public class SwiftRide {
                 allScrapedData.add(new String[]{mainPageTitle.replace(",", ""), "Error", "Failed to extract vehicles", e.getMessage()});
             }
 
-            // Task 2: Crawl multiple pages from the same website
-            System.out.println("\n=== TASK 2: Crawling Multiple Pages ===");
-            crawlMultiplePages(driver, wait, allScrapedData);
-
             // Save all scraped data to a CSV file
             try (FileWriter csvWriter = new FileWriter("swiftride_data.csv")) {
                 for (String[] rowData : allScrapedData) {
@@ -491,6 +483,24 @@ public class SwiftRide {
                 System.out.println("All data from SwiftRide saved to swiftride_data.csv");
             } catch (IOException e) {
                 System.err.println("Error writing to CSV file: " + e.getMessage());
+            }
+
+            // Task 2: Crawl multiple pages from the same website
+            System.out.println("\n=== TASK 2: Crawling Multiple Pages ===");
+            List<String[]> multiPageData = new ArrayList<>();
+            multiPageData.add(new String[]{"Page Title", "Section", "Content Info", "Details"});
+            
+            crawlMultiplePages(driver, wait, multiPageData);
+            
+            // Save multi-page data to a separate CSV file
+            try (FileWriter csvWriter = new FileWriter("swiftride_multipage_data.csv")) {
+                for (String[] rowData : multiPageData) {
+                    csvWriter.append(String.join(",", rowData));
+                    csvWriter.append("\n");
+                }
+                System.out.println("Multi-page crawling data saved to swiftride_multipage_data.csv");
+            } catch (IOException e) {
+                System.err.println("Error writing multi-page CSV file: " + e.getMessage());
             }
 
         } catch (Exception mainException) {
@@ -503,4 +513,5 @@ public class SwiftRide {
             System.out.println("Chrome browser left open for debugging. Close manually when done.");
         }
     }
+
 }
