@@ -18,8 +18,7 @@ import java.util.ArrayList;
 public class SwiftRide {
 
     /**
-     * Method to automatically handle browser alert dialogs
-     * Waits for an alert to appear and accepts it if found
+     * Method to handle automatically  the browser alert dialogs
      */
     private static void manageWebPageAlerts(WebDriver driver) {
         try {
@@ -41,10 +40,10 @@ public class SwiftRide {
     }
 
     /**
-     * Task 3: Advanced Selenium - Handle vehicle image pop-ups/modals
+     * Task 3: Advanced Selenium - Handle pop-ups/modals
      * Shows how to interact with modal dialogs and wait for specific elements
      */
- private static void handleVehicleImagePopups(WebDriver driver, WebDriverWait wait, String pageTitle) {
+ private static void handlePopUps(WebDriver driver, WebDriverWait wait, String pageTitle) {
     try {
                 // --- OPEN POPUP ---
                 WebElement popupOpener = wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//*[@id='cw-bubble-holder']/button[1]")));
@@ -66,7 +65,7 @@ public class SwiftRide {
           
 
     } catch (Exception e) {
-        System.out.println("❌ Error in handleVehicleImagePopups: " + e.getMessage());
+        System.out.println("❌ Error in handlePopUps: " + e.getMessage());
     }
 }
 
@@ -337,7 +336,7 @@ public class SwiftRide {
                 if (!vehicleElements.isEmpty()) {
                     // Task 3: Demonstrate advanced Selenium - handle vehicle interactions
                     System.out.println("\n=== TASK 3: Demonstrating Advanced Selenium Commands ===");
-                    handleVehicleImagePopups(driver, wait, mainPageTitle);
+                    handlePopUps(driver, wait, mainPageTitle);
                     
                     // Process each discovered vehicle element to extract detailed information
                     int maxVehicles = Math.min(10, vehicleElements.size()); // Limit processing to avoid overwhelming data
