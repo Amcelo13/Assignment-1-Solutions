@@ -31,97 +31,6 @@ public class HertzScraper {
         }
     }
 
-    // Task 3: Advanced Selenium - Handle vehicle image pop-ups/modals
-    private static void handleVehicleImagePopups(WebDriver driver, WebDriverWait wait, List<WebElement> vehicleElements, 
-                                                List<String[]> allScrapedData, String pageTitle) {
-        try {
-            // Demonstrate clicking on vehicle images to open pop-ups (first 3 vehicles to avoid too much time)
-            int vehiclesToTest = Math.min(3, vehicleElements.size());
-            System.out.println("Testing image pop-ups for first " + vehiclesToTest + " vehicles...");
-            
-            for (int i = 0; i < vehiclesToTest; i++) {
-                try {
-                    WebElement vehicle = vehicleElements.get(i);
-                    
-                    // Find the clickable vehicle image button
-                    WebElement imageButton = vehicle.findElement(By.xpath(".//button[contains(@class, 'car-item__vehicle-image--clickable')]"));
-                    
-                    // Get vehicle name for logging
-                    String vehicleName = "Unknown";
-                    try {
-                        vehicleName = vehicle.findElement(By.xpath(".//h2[@class='mb-0']")).getText();
-                    } catch (Exception e) {
-                        vehicleName = "Vehicle " + (i + 1);
-                    }
-                    
-                    System.out.println("Clicking on image for: " + vehicleName);
-                    
-                    // Advanced Selenium: Scroll element into view before clicking
-                    ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", imageButton);
-                    Thread.sleep(1000); // Small pause for smooth scrolling
-                    
-                    // Click the image to open pop-up
-                    imageButton.click();
-                    
-                    // Advanced Selenium: Wait for modal/pop-up to appear
-                    try {
-                        // Wait for modal dialog or overlay to appear
-                        WebElement modal = wait.until(ExpectedConditions.presenceOfElementLocated(
-                            By.xpath("//div[contains(@class, 'modal') or contains(@class, 'dialog') or contains(@class, 'overlay') or contains(@class, 'popup')]")
-                        ));
-                        System.out.println("✓ Pop-up opened successfully for " + vehicleName);
-                        
-                        // Extract any additional information from the modal
-                        try {
-                            String modalContent = modal.getText();
-                            if (!modalContent.trim().isEmpty()) {
-                                allScrapedData.add(new String[]{pageTitle, "Vehicle Image Modal " + (i+1), vehicleName + " - Modal Content", modalContent.replace(",", "").substring(0, Math.min(100, modalContent.length())) + "..."});
-                            }
-                        } catch (Exception e) {
-                            System.out.println("Could not extract modal content: " + e.getMessage());
-                        }
-                        
-                        // Advanced Selenium: Close the modal using various methods
-                        try {
-                            // Method 1: Look for close button
-                            WebElement closeButton = driver.findElement(By.xpath("//button[contains(@class, 'close') or contains(@aria-label, 'close') or contains(@aria-label, 'Close')]"));
-                            closeButton.click();
-                            System.out.println("✓ Closed modal using close button");
-                        } catch (Exception e1) {
-                            try {
-                                // Method 2: Press ESC key
-                                modal.sendKeys(Keys.ESCAPE);
-                                System.out.println("✓ Closed modal using ESC key");
-                            } catch (Exception e2) {
-                                try {
-                                    // Method 3: Click outside modal (on overlay)
-                                    ((JavascriptExecutor) driver).executeScript("document.body.click();");
-                                    System.out.println("✓ Closed modal by clicking outside");
-                                } catch (Exception e3) {
-                                    System.out.println("Could not close modal, continuing...");
-                                }
-                            }
-                        }
-                        
-                        // Wait for modal to disappear
-                        wait.until(ExpectedConditions.invisibilityOf(modal));
-                        
-                    } catch (Exception modalException) {
-                        System.out.println("No modal appeared or different pop-up mechanism for " + vehicleName + ": " + modalException.getMessage());
-                    }
-                    
-                    Thread.sleep(2000); // Pause between clicks
-                    
-                } catch (Exception vehicleException) {
-                    System.out.println("Could not interact with vehicle " + (i+1) + " image: " + vehicleException.getMessage());
-                }
-            }
-            
-        } catch (Exception e) {
-            System.out.println("Error in handleVehicleImagePopups: " + e.getMessage());
-        }
-    }
-
     // Task 2: Crawl multiple pages from the same website
     private static void crawlMultiplePages(WebDriver driver, WebDriverWait wait, List<String[]> allScrapedData) {
         String[] pagesToCrawl = {
@@ -260,6 +169,250 @@ public class HertzScraper {
         }
     }
 
+    // Task 3: Advanced Selenium - Handle vehicle image pop-ups/modals (MOVED TO END)
+    private static void handleVehicleImagePopups(WebDriver driver, WebDriverWait wait, List<String[]> allScrapedData, String pageTitle) {
+        try {
+            System.out.println("\n=== TASK 3: Demonstrating Advanced Selenium Commands ===");
+            System.out.println("Navigating back to vehicle selection page for advanced Selenium demonstrations...");
+            
+            // Navigate to the vehicle page for Task 3
+            driver.get("https://www.enterprise.ca/en/car-rental.html");
+            
+            // Handle cookie banner
+            try {
+                WebElement closeCookieButton = wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//button[contains(text(), 'CLOSE')]")));
+                closeCookieButton.click();
+                System.out.println("Cookie banner closed for Task 3.");
+            } catch (Exception e) {
+                System.out.println("No cookie banner found for Task 3.");
+            }
+
+            // Fill out the form again to get to vehicle page
+            try {
+                WebElement locationInput = wait.until(ExpectedConditions.elementToBeClickable(By.id("pickupLocationTextBox")));
+                locationInput.clear();
+                locationInput.sendKeys("Pearson International");
+                Thread.sleep(2000);
+                
+                try {
+                    WebElement pearsonOption = wait.until(ExpectedConditions.elementToBeClickable(
+                        By.xpath("//li[@id='location-1019226']//button[@data-location-type='airports'] | " +
+                                "//li[contains(@class, 'location-group__item')]//span[contains(text(), 'Toronto Pearson International Airport')]/..")
+                    ));
+                    pearsonOption.click();
+                    System.out.println("Selected airport for Task 3");
+                } catch (Exception e) {
+                    System.out.println("Using manual entry for Task 3");
+                }
+
+                WebElement browseVehiclesBtn = wait.until(ExpectedConditions.elementToBeClickable(By.id("continueButton")));
+                browseVehiclesBtn.click();
+                Thread.sleep(3000);
+                
+            } catch (Exception e) {
+                System.out.println("Error setting up form for Task 3: " + e.getMessage());
+                return;
+            }
+
+            // Advanced Selenium Task 3: Demonstrate advanced interactions
+            try {
+                WebDriverWait vehicleWait = new WebDriverWait(driver, Duration.ofSeconds(15));
+                vehicleWait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//li[contains(@class, 'vehicle-list__item')]")));
+                
+                List<WebElement> vehicleElements = driver.findElements(By.xpath("//li[contains(@class, 'vehicle-list__item')]"));
+                
+                if (!vehicleElements.isEmpty()) {
+                    System.out.println("=== Advanced Selenium Demonstrations ===");
+                    
+                    // Advanced Task 3.1: JavaScript Execution
+                    System.out.println("\n--- Advanced Task 3.1: JavaScript Execution ---");
+                    try {
+                        JavascriptExecutor js = (JavascriptExecutor) driver;
+                        
+                        // Get page info using JavaScript
+                        String pageInfo = (String) js.executeScript("return 'Page Title: ' + document.title + ', URL: ' + window.location.href + ', Vehicle Count: ' + document.querySelectorAll('li[class*=\"vehicle-list__item\"]').length;");
+                        System.out.println("JavaScript execution result: " + pageInfo);
+                        allScrapedData.add(new String[]{pageTitle, "Advanced JS Execution", "Page Information", pageInfo.replace(",", "")});
+                        
+                        // Scroll to bottom using JavaScript
+                        js.executeScript("window.scrollTo(0, document.body.scrollHeight);");
+                        Thread.sleep(1000);
+                        System.out.println("✓ Scrolled to bottom using JavaScript");
+                        
+                        // Scroll back to top
+                        js.executeScript("window.scrollTo(0, 0);");
+                        Thread.sleep(1000);
+                        System.out.println("✓ Scrolled to top using JavaScript");
+                        
+                    } catch (Exception e) {
+                        System.out.println("Error in JavaScript execution: " + e.getMessage());
+                    }
+                    
+                    // Advanced Task 3.2: Advanced Element Interactions
+                    System.out.println("\n--- Advanced Task 3.2: Advanced Element Interactions ---");
+                    int vehiclesToTest = Math.min(3, vehicleElements.size());
+                    
+                    for (int i = 0; i < vehiclesToTest; i++) {
+                        try {
+                            WebElement vehicle = vehicleElements.get(i);
+                            String vehicleName = "Vehicle " + (i + 1);
+                            
+                            try {
+                                vehicleName = vehicle.findElement(By.xpath(".//h2[@class='mb-0']")).getText();
+                            } catch (Exception e) {
+                                vehicleName = "Vehicle " + (i + 1);
+                            }
+                            
+                            System.out.println("Testing advanced interactions for: " + vehicleName);
+                            
+                            // Advanced Selenium: Scroll element into view
+                            ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", vehicle);
+                            Thread.sleep(1000);
+                            System.out.println("✓ Smooth scrolled to vehicle using JavaScript");
+                            
+                            // Advanced Selenium: Highlight element
+                            ((JavascriptExecutor) driver).executeScript("arguments[0].style.border='3px solid red';", vehicle);
+                            Thread.sleep(1000);
+                            System.out.println("✓ Highlighted vehicle element with red border");
+                            
+                            // Advanced Selenium: Get element properties
+                            String elementInfo = (String) ((JavascriptExecutor) driver).executeScript(
+                                "var rect = arguments[0].getBoundingClientRect(); " +
+                                "return 'Position: (' + Math.round(rect.left) + ',' + Math.round(rect.top) + '), Size: ' + Math.round(rect.width) + 'x' + Math.round(rect.height);", 
+                                vehicle);
+                            System.out.println("✓ Element properties: " + elementInfo);
+                            allScrapedData.add(new String[]{pageTitle, "Advanced Element Info " + (i+1), vehicleName + " Properties", elementInfo});
+                            
+                            // Remove highlight
+                            ((JavascriptExecutor) driver).executeScript("arguments[0].style.border='';", vehicle);
+                            
+                            // Advanced Selenium: Try to find and interact with clickable image
+                            try {
+                                WebElement imageButton = vehicle.findElement(By.xpath(".//button[contains(@class, 'car-item__vehicle-image--clickable')] | .//img | .//div[contains(@class, 'image')]"));
+                                
+                                // Highlight the clickable element
+                                ((JavascriptExecutor) driver).executeScript("arguments[0].style.outline='3px solid blue';", imageButton);
+                                System.out.println("✓ Found and highlighted clickable image element");
+                                
+                                // Advanced click using JavaScript
+                                ((JavascriptExecutor) driver).executeScript("arguments[0].click();", imageButton);
+                                System.out.println("✓ Clicked using JavaScript execution");
+                                
+                                // Wait for potential modal/popup
+                                try {
+                                    WebElement modal = wait.until(ExpectedConditions.presenceOfElementLocated(
+                                        By.xpath("//div[contains(@class, 'modal') or contains(@class, 'dialog') or contains(@class, 'overlay') or contains(@class, 'popup') or contains(@role, 'dialog')]")
+                                    ));
+                                    System.out.println("✓ Modal/popup detected for " + vehicleName);
+                                    
+                                    // Advanced modal handling
+                                    String modalText = modal.getText();
+                                    if (!modalText.trim().isEmpty()) {
+                                        allScrapedData.add(new String[]{pageTitle, "Advanced Modal Content " + (i+1), vehicleName + " Modal", modalText.replace(",", "").substring(0, Math.min(100, modalText.length())) + "..."});
+                                    }
+                                    
+                                    // Advanced modal closing techniques
+                                    try {
+                                        // Method 1: Find close button
+                                        WebElement closeBtn = modal.findElement(By.xpath(".//button[contains(@class, 'close') or contains(@aria-label, 'close')] | .//*[contains(text(), '×')] | .//*[contains(text(), 'Close')]"));
+                                        closeBtn.click();
+                                        System.out.println("✓ Closed modal using close button");
+                                    } catch (Exception e1) {
+                                        try {
+                                            // Method 2: ESC key
+                                            modal.sendKeys(Keys.ESCAPE);
+                                            System.out.println("✓ Closed modal using ESC key");
+                                        } catch (Exception e2) {
+                                            try {
+                                                // Method 3: Click outside modal
+                                                ((JavascriptExecutor) driver).executeScript("document.body.click();");
+                                                System.out.println("✓ Closed modal by clicking outside");
+                                            } catch (Exception e3) {
+                                                System.out.println("Modal close methods attempted");
+                                            }
+                                        }
+                                    }
+                                    
+                                    // Wait for modal to disappear
+                                    wait.until(ExpectedConditions.invisibilityOf(modal));
+                                    
+                                } catch (Exception modalException) {
+                                    System.out.println("No modal appeared or different interaction mechanism");
+                                }
+                                
+                                // Remove highlight
+                                ((JavascriptExecutor) driver).executeScript("arguments[0].style.outline='';", imageButton);
+                                
+                            } catch (Exception imageException) {
+                                System.out.println("No clickable image found for " + vehicleName + ": " + imageException.getMessage());
+                            }
+                            
+                            Thread.sleep(2000); // Pause between vehicles
+                            
+                        } catch (Exception vehicleException) {
+                            System.out.println("Error with advanced interactions for vehicle " + (i+1) + ": " + vehicleException.getMessage());
+                        }
+                    }
+                    
+                    // Advanced Task 3.3: Advanced Navigation and Window Handling
+                    System.out.println("\n--- Advanced Task 3.3: Advanced Navigation Techniques ---");
+                    try {
+                        // Get current URL
+                        String currentUrl = driver.getCurrentUrl();
+                        System.out.println("Current URL: " + currentUrl);
+                        
+                        // Advanced navigation: Refresh page
+                        driver.navigate().refresh();
+                        Thread.sleep(2000);
+                        System.out.println("✓ Page refreshed using navigate().refresh()");
+                        
+                        // Advanced navigation: Back and forward
+                        driver.navigate().back();
+                        Thread.sleep(1000);
+                        System.out.println("✓ Navigated back");
+                        
+                        driver.navigate().forward();
+                        Thread.sleep(1000);
+                        System.out.println("✓ Navigated forward");
+                        
+                        // Advanced: Get page source length
+                        int pageSourceLength = driver.getPageSource().length();
+                        System.out.println("✓ Page source length: " + pageSourceLength + " characters");
+                        allScrapedData.add(new String[]{pageTitle, "Advanced Navigation", "Page Source Analysis", "Length: " + pageSourceLength + " chars"});
+                        
+                        // Advanced: Window size manipulation
+                        org.openqa.selenium.Dimension originalSize = driver.manage().window().getSize();
+                        System.out.println("✓ Original window size: " + originalSize.width + "x" + originalSize.height);
+                        
+                        // Resize window
+                        driver.manage().window().setSize(new org.openqa.selenium.Dimension(1200, 800));
+                        Thread.sleep(1000);
+                        System.out.println("✓ Resized window to 1200x800");
+                        
+                        // Restore original size
+                        driver.manage().window().setSize(originalSize);
+                        Thread.sleep(1000);
+                        System.out.println("✓ Restored original window size");
+                        
+                    } catch (Exception navException) {
+                        System.out.println("Error in advanced navigation: " + navException.getMessage());
+                    }
+                    
+                    System.out.println("\n=== Task 3 Advanced Selenium Demonstrations Completed ===");
+                    
+                } else {
+                    System.out.println("No vehicles found for advanced Selenium demonstrations");
+                }
+                
+            } catch (Exception e) {
+                System.out.println("Error in advanced Selenium demonstrations: " + e.getMessage());
+            }
+            
+        } catch (Exception e) {
+            System.out.println("Error in handleVehicleImagePopups (Task 3): " + e.getMessage());
+        }
+    }
+
     public static void main(String[] args) {
         System.setProperty("webdriver.chrome.driver", "/usr/local/bin/chromedriver");
 
@@ -274,33 +427,34 @@ public class HertzScraper {
         allScrapedData.add(new String[]{"Page Title", "Section", "Vehicle Info", "Details"});
 
         try {
-            // --- Page 1: Main Car Rental Page ---
+            // =============================================
+            // TASK 1: Form Filling and Vehicle Extraction
+            // =============================================
+            System.out.println("=== TASK 1: Form Filling and Vehicle Extraction ===");
+            
             driver.get("https://www.enterprise.ca/en/car-rental.html");
             driver.manage().window().maximize();
 
-            // Task 1: Interact with cookie banner
+            // Handle cookie banner
             try {
-                WebElement closeCookieButton = wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//button[contains(text(), \'CLOSE\')]")));
+                WebElement closeCookieButton = wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//button[contains(text(), 'CLOSE')]")));
                 closeCookieButton.click();
                 System.out.println("Cookie banner closed.");
             } catch (Exception e) {
                 System.out.println("Cookie banner not found or not clickable on main page.");
             }
 
-            // Handle any potential alerts after initial page load or cookie interaction
+            // Handle any potential alerts
             handleAlert(driver);
 
-            // Task 1: Fill out the booking form
+            // Fill out the booking form
             try {
-                // Wait for the location input field and enter "Pearson International"
                 WebElement locationInput = wait.until(ExpectedConditions.elementToBeClickable(By.id("pickupLocationTextBox")));
                 locationInput.clear();
                 locationInput.sendKeys("Pearson International");
-                Thread.sleep(2000); // Wait for autocomplete suggestions
+                Thread.sleep(2000);
                 
-                // Click on the Toronto Pearson International Airport option from dropdown
                 try {
-                    // Wait for the dropdown to appear and find the specific Pearson airport option
                     WebElement pearsonOption = wait.until(ExpectedConditions.elementToBeClickable(
                         By.xpath("//li[@id='location-1019226']//button[@data-location-type='airports'] | " +
                                 "//li[contains(@class, 'location-group__item')]//span[contains(text(), 'Toronto Pearson International Airport')]/..")
@@ -308,17 +462,7 @@ public class HertzScraper {
                     pearsonOption.click();
                     System.out.println("Selected Toronto Pearson International Airport (YYZ)");
                 } catch (Exception e) {
-                    // Try alternative selector for the dropdown option
-                    try {
-                        WebElement pearsonAlt = wait.until(ExpectedConditions.elementToBeClickable(
-                            By.xpath("//button[contains(.//span, 'Toronto Pearson International Airport')] | " +
-                                    "//li[contains(., 'Toronto Pearson International Airport')]")
-                        ));
-                        pearsonAlt.click();
-                        System.out.println("Selected Toronto Pearson International Airport (alternative selector)");
-                    } catch (Exception e2) {
-                        System.out.println("Autocomplete suggestion not found, continuing with manual entry: " + e2.getMessage());
-                    }
+                    System.out.println("Autocomplete suggestion not found, continuing with manual entry");
                 }
 
                 // Set pickup time to 10:00 AM
@@ -359,7 +503,7 @@ public class HertzScraper {
                     WebElement browseVehiclesBtn = wait.until(ExpectedConditions.elementToBeClickable(By.id("continueButton")));
                     browseVehiclesBtn.click();
                     System.out.println("Clicked Browse Vehicles button");
-                    Thread.sleep(3000); // Wait for page to load
+                    Thread.sleep(3000);
                 } catch (Exception e) {
                     System.out.println("Could not click Browse Vehicles button: " + e.getMessage());
                 }
@@ -379,25 +523,18 @@ public class HertzScraper {
                 allScrapedData.add(new String[]{page1Title.replace(",", ""), "Vehicle Selection Page", "", ""});
             }
 
-            // Extract vehicle information if browse vehicles was successful
+            // Extract vehicle information
             try {
-                // Wait for vehicle results to load using explicit wait
                 WebDriverWait vehicleWait = new WebDriverWait(driver, Duration.ofSeconds(15));
                 vehicleWait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//li[contains(@class, 'vehicle-list__item')]")));
                 
-                // Look for vehicle cards using the actual class structure
                 List<WebElement> vehicleElements = driver.findElements(By.xpath("//li[contains(@class, 'vehicle-list__item')]"));
                 if (!vehicleElements.isEmpty()) {
                     System.out.println("Found " + vehicleElements.size() + " vehicle options");
                     
-                    // Task 3: Demonstrate advanced Selenium - handle vehicle image pop-ups
-                    System.out.println("\n=== TASK 3: Demonstrating Advanced Selenium Commands ===");
-                    handleVehicleImagePopups(driver, wait, vehicleElements, allScrapedData, page1Title);
-                    
-                    for (int i = 0; i < vehicleElements.size(); i++) { // Extract all vehicles
+                    for (int i = 0; i < vehicleElements.size(); i++) {
                         WebElement vehicle = vehicleElements.get(i);
                         try {
-                            // Extract vehicle details based on the actual HTML structure
                             String vehicleCode = "";
                             String vehicleName = "";
                             String vehicleDescription = "";
@@ -425,14 +562,12 @@ public class HertzScraper {
                             }
                             
                             try {
-                                // Extract price (symbol + unit + fraction)
                                 String symbol = vehicle.findElement(By.xpath(".//span[@class='rs-price-tag__symbol']")).getText();
                                 String unit = vehicle.findElement(By.xpath(".//span[@class='rs-price-tag__unit']")).getText();
                                 String fraction = vehicle.findElement(By.xpath(".//span[@class='rs-price-tag__fraction']")).getText();
                                 priceAmount = symbol + " " + unit + fraction;
                             } catch (Exception e) {
                                 try {
-                                    // Alternative: look for "Call For Availability"
                                     priceAmount = vehicle.findElement(By.xpath(".//p[contains(@class, 'car-item__price-details-message')]")).getText();
                                 } catch (Exception e2) {
                                     priceAmount = "N/A";
@@ -452,7 +587,6 @@ public class HertzScraper {
                                 bags = "N/A";
                             }
                             
-                            // Only add vehicle data to CSV if we have valid information
                             if (!vehicleName.equals("N/A") && !vehicleName.isEmpty() && 
                                 !priceAmount.equals("N/A") && !priceAmount.isEmpty() && 
                                 !priceAmount.trim().equals("")) {
@@ -477,27 +611,42 @@ public class HertzScraper {
                 System.out.println("Error extracting vehicle information: " + e.getMessage());
             }
 
-            // Task 2: Crawl multiple pages from the same website
+            // =============================================
+            // TASK 2: Crawling Multiple Pages
+            // =============================================
             System.out.println("\n=== TASK 2: Crawling Multiple Pages ===");
             crawlMultiplePages(driver, wait, allScrapedData);
 
-            // Save all scraped data to a CSV file
-            try (FileWriter csvWriter = new FileWriter("hertz_vehicles.csv")) {
+            // Save data after Task 1 and 2
+            try (FileWriter csvWriter = new FileWriter("hertz_vehicles_tasks_1_and_2.csv")) {
                 for (String[] rowData : allScrapedData) {
                     csvWriter.append(String.join(",", rowData));
                     csvWriter.append("\n");
                 }
-                System.out.println("All data from multiple pages saved to hertz_vehicles.csv");
+                System.out.println("Data from Tasks 1 and 2 saved to hertz_vehicles_tasks_1_and_2.csv");
             } catch (IOException e) {
                 System.err.println("Error writing to CSV file: " + e.getMessage());
             }
 
-        }
-        
-         finally {
+            // =============================================
+            // TASK 3: Advanced Selenium (AT THE END)
+            // =============================================
+            handleVehicleImagePopups(driver, wait, allScrapedData, page1Title);
+
+            // Save final data including Task 3
+            try (FileWriter csvWriter = new FileWriter("hertz_vehicles_complete.csv")) {
+                for (String[] rowData : allScrapedData) {
+                    csvWriter.append(String.join(",", rowData));
+                    csvWriter.append("\n");
+                }
+                System.out.println("Complete data from all 3 tasks saved to hertz_vehicles_complete.csv");
+            } catch (IOException e) {
+                System.err.println("Error writing to final CSV file: " + e.getMessage());
+            }
+
+        } finally {
             // driver.quit(); // Commented out to keep Chrome open for debugging
             System.out.println("Chrome browser left open for debugging. Close manually when done.");
         }
     }
 }
-
