@@ -293,9 +293,9 @@ public class SwiftRide {
                     By.xpath("//input[@placeholder='Search by make, model, or year...']")));
                 searchInput.clear(); // Remove any existing text
                 searchInput.sendKeys("honda"); // Type the search term
+                Thread.sleep(1000);
                 searchInput.sendKeys(Keys.ENTER); // Submit the search
                 Thread.sleep(2000); // Wait for search results to load
-                System.out.println("Search completed for 'honda'");
             } catch (Exception e) {
                 System.out.println("Could not perform search: " + e.getMessage());
             }
@@ -322,38 +322,17 @@ public class SwiftRide {
             // === VEHICLE DATA EXTRACTION: Systematic content mining ===
             try {
                 // Create extended wait period for dynamic vehicle loading
-                WebDriverWait vehicleWait = new WebDriverWait(driver, Duration.ofSeconds(20));
+                WebDriverWait vehicleWait = new WebDriverWait(driver, Duration.ofSeconds(10));
                 
-                List<WebElement> vehicleElements = new ArrayList<>();
+                // Wait for the search results grid to appear
+                WebElement resultsGrid = vehicleWait.until(ExpectedConditions.presenceOfElementLocated(
+                    By.xpath("//div[contains(@class, 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3')]")));
                 
-                // Define multiple XPath strategies to locate vehicle containers reliably
-                String[] vehicleSelectors = {
-                    "//div[contains(@class, 'rounded-lg border text-card-foreground shadow-sm flex flex-col w-full cursor-pointer')]", // Primary SwiftRide layout
-                    "//div[@role='button' and @tabindex='0']", // Interactive elements
-                    "//div[contains(@class, 'car-item')] | //div[contains(@class, 'vehicle-item')]", // Generic car containers
-                    "//div[contains(@class, 'car-card')] | //div[contains(@class, 'vehicle-card')]", // Card-based layouts
-                    "//div[contains(@class, 'car')] | //div[contains(@class, 'vehicle')]" // Broad car-related divs
-                };
+                // Find all vehicle cards within the results grid
+                List<WebElement> vehicleElements = resultsGrid.findElements(
+                    By.xpath(".//div[contains(@class, 'rounded-lg border text-card-foreground shadow-sm flex flex-col w-full cursor-pointer')]"));
                 
-                // Try each selector strategy until vehicle elements are found
-                for (String selector : vehicleSelectors) {
-                    try {
-                        vehicleWait.until(ExpectedConditions.presenceOfElementLocated(By.xpath(selector)));
-                        vehicleElements = driver.findElements(By.xpath(selector));
-                        if (!vehicleElements.isEmpty()) {
-                            System.out.println("Found " + vehicleElements.size() + " vehicles using selector: " + selector);
-                            break; // Stop trying once successful
-                        }
-                    } catch (Exception e) {
-                        continue; // Try next selector if current one fails
-                    }
-                }
-                
-                // Fallback to generic content if specific vehicle selectors fail
-                if (vehicleElements.isEmpty()) {
-                    vehicleElements = driver.findElements(By.xpath("//div[contains(@class, 'content')] | //section | //article"));
-                    System.out.println("Using generic content extraction. Found " + vehicleElements.size() + " content sections.");
-                }
+                System.out.println("Found " + vehicleElements.size() + " Honda vehicles from search results");
                 
                 if (!vehicleElements.isEmpty()) {
                     // Task 3: Demonstrate advanced Selenium - handle vehicle interactions
@@ -363,103 +342,128 @@ public class SwiftRide {
                     // Process each discovered vehicle element to extract detailed information
                     int maxVehicles = Math.min(10, vehicleElements.size()); // Limit processing to avoid overwhelming data
                     for (int i = 0; i < maxVehicles; i++) {
-                        WebElement element = vehicleElements.get(i);
+                        WebElement vehicleCard = vehicleElements.get(i);
                         try {
                             // Initialize data collection variables with default values
                             String vehicleName = "N/A";
-                            String vehicleDescription = "N/A";
+                            String vehicleYear = "N/A";
                             String priceInfo = "N/A";
-                            String additionalInfo = "";
+                            String features = "N/A";
+                            String basics = "N/A";
+                            String location = "N/A";
+                            String availability = "N/A";
                             
-                            // Priority 1: Extract vehicle brand and model name
+                            // Extract vehicle name (Honda model)
                             try {
-                                WebElement nameElement = element.findElement(By.xpath(".//h3[contains(@class, 'text-[#57E667]')]"));
+                                WebElement nameElement = vehicleCard.findElement(By.xpath(".//h3[contains(@class, 'text-[#57E667]')]"));
                                 vehicleName = nameElement.getText().trim();
                             } catch (Exception e) {
-                                try {
-                                    // Fallback: Use any heading element for vehicle name
-                                    WebElement altNameElement = element.findElement(By.xpath(".//h3 | .//h2 | .//h1"));
-                                    vehicleName = altNameElement.getText().trim();
-                                } catch (Exception e2) {
-                                    vehicleName = "Vehicle " + (i + 1); // Generic name if nothing found
-                                }
+                                vehicleName = "Honda Vehicle " + (i + 1);
                             }
                             
-                            // Priority 2: Capture vehicle year and basic specs
-                            String yearInfo = "N/A";
+                            // Extract vehicle year
                             try {
-                                WebElement yearElement = element.findElement(By.xpath(".//p[contains(@class, 'text-gray-400')]"));
-                                yearInfo = yearElement.getText().trim();
+                                WebElement yearElement = vehicleCard.findElement(By.xpath(".//p[contains(@class, 'text-gray-400') and contains(@class, 'body-sm')]"));
+                                vehicleYear = yearElement.getText().trim();
                             } catch (Exception e) {
-                                yearInfo = "Year not specified";
+                                vehicleYear = "Year not specified";
                             }
                             
-                            // Priority 3: Extract rental pricing information
+                            // Extract price information
                             try {
-                                WebElement priceElement = element.findElement(By.xpath(".//span[contains(@class, 'text-3xl font-bold text-white')]"));
-                                String weeklyRate = element.findElement(By.xpath(".//span[contains(@class, 'text-sm text-gray-400 font-medium')]")).getText();
-                                priceInfo = priceElement.getText().trim() + weeklyRate;
+                                WebElement priceElement = vehicleCard.findElement(By.xpath(".//span[contains(@class, 'text-3xl font-bold text-white')]"));
+                                WebElement weeklyElement = vehicleCard.findElement(By.xpath(".//span[contains(@class, 'text-sm text-gray-400 font-medium')]"));
+                                priceInfo = priceElement.getText().trim() + " " + weeklyElement.getText().trim();
                             } catch (Exception e) {
-                                priceInfo = "Price not displayed";
+                                priceInfo = "Price not available";
+                            }
+                            
+                            // Extract availability status
+                            try {
+                                WebElement availabilityElement = vehicleCard.findElement(By.xpath(".//span[contains(@class, 'bg-[#57E667]/20 text-[#57E667]')]"));
+                                availability = availabilityElement.getText().trim();
+                            } catch (Exception e) {
+                                availability = "Status unknown";
                             }
                             
                             // Extract vehicle basics (fuel type, transmission, etc.)
                             try {
-                                List<WebElement> basics = element.findElements(By.xpath(".//div[contains(@class, 'inline-flex items-center text-xs bg-gray-800')]"));
+                                List<WebElement> basicElements = vehicleCard.findElements(By.xpath(".//div[contains(@class, 'inline-flex items-center text-xs bg-gray-800')]"));
                                 StringBuilder basicsBuilder = new StringBuilder();
-                                for (WebElement basic : basics) {
+                                for (WebElement basic : basicElements) {
                                     String basicText = basic.getText().trim();
                                     if (!basicText.isEmpty()) {
                                         if (basicsBuilder.length() > 0) basicsBuilder.append(" | ");
                                         basicsBuilder.append(basicText);
                                     }
                                 }
-                                additionalInfo = basicsBuilder.toString();
+                                basics = basicsBuilder.toString().isEmpty() ? "Basic info not available" : basicsBuilder.toString();
                             } catch (Exception e) {
-                                additionalInfo = "No additional info";
+                                basics = "Basic info not available";
                             }
                             
                             // Extract features
                             try {
-                                WebElement featuresElement = element.findElement(By.xpath(".//p[contains(@class, 'text-xs text-gray-400 leading-relaxed')]"));
-                                String features = featuresElement.getText().trim();
-                                if (!features.isEmpty()) {
-                                    vehicleDescription = features;
-                                } else {
-                                    vehicleDescription = yearInfo;
-                                }
+                                WebElement featuresElement = vehicleCard.findElement(By.xpath(".//p[contains(@class, 'text-xs text-gray-400 leading-relaxed')]"));
+                                features = featuresElement.getText().trim();
+                                if (features.isEmpty()) features = "Features not listed";
                             } catch (Exception e) {
-                                vehicleDescription = yearInfo;
+                                features = "Features not listed";
                             }
                             
-                            // Only add to CSV if we have meaningful data
-                            if (!vehicleName.equals("N/A") && !vehicleName.isEmpty() && vehicleName.length() > 1) {
-                                String contentInfo = vehicleName + (vehicleDescription.length() > 10 ? " - " + vehicleDescription : "");
-                                String contentDetails = "Price: " + priceInfo + (additionalInfo.length() > 0 ? " | " + additionalInfo : "");
-                                
-                                allScrapedData.add(new String[]{
-                                    mainPageTitle.replace(",", ""), 
-                                    "Car/Content " + (i+1), 
-                                    contentInfo.replace(",", "").substring(0, Math.min(200, contentInfo.length())), 
-                                    contentDetails.replace(",", "").substring(0, Math.min(200, contentDetails.length()))
-                                });
-                                
-                                System.out.println("Extracted item " + (i+1) + ": " + vehicleName + " - " + priceInfo);
+                            // Extract location information
+                            try {
+                                WebElement locationElement = vehicleCard.findElement(By.xpath(".//span[contains(@class, 'inline-flex items-center') and contains(text(), 'mi •')]"));
+                                location = locationElement.getText().trim();
+                            } catch (Exception e) {
+                                location = "Location not specified";
                             }
+                            
+                            // Create comprehensive vehicle description (safely handle length)
+                            String vehicleDescription = vehicleYear + " " + vehicleName + " - " + features + " - " + basics;
+                            String vehicleDetails = "Price: " + priceInfo + " | Location: " + location + " | Status: " + availability;
+                            
+                            // Clean strings by removing commas and limiting length safely
+                            String cleanDescription = vehicleDescription.replace(",", " ");
+                            String cleanDetails = vehicleDetails.replace(",", " ");
+                            
+                            // Safely truncate strings if they're too long
+                            if (cleanDescription.length() > 200) {
+                                cleanDescription = cleanDescription.substring(0, 200) + "...";
+                            }
+                            if (cleanDetails.length() > 200) {
+                                cleanDetails = cleanDetails.substring(0, 200) + "...";
+                            }
+                            
+                            // Add to CSV data
+                            allScrapedData.add(new String[]{
+                                mainPageTitle.replace(",", ""), 
+                                "Honda Vehicle " + (i+1), 
+                                cleanDescription, 
+                                cleanDetails
+                            });
+                            
+                            System.out.println("Extracted Honda " + (i+1) + ": " + vehicleName + " (" + vehicleYear + ") - " + priceInfo);
                             
                         } catch (Exception e) {
-                            System.out.println("Could not extract details for item " + (i+1) + ": " + e.getMessage());
+                            System.out.println("Could not extract details for Honda vehicle " + (i+1) + ": " + e.getMessage());
+                            // Add error entry with safe string handling
+                            allScrapedData.add(new String[]{
+                                mainPageTitle.replace(",", ""), 
+                                "Honda Vehicle " + (i+1), 
+                                "Data extraction failed", 
+                                "Error: " + e.getMessage().replace(",", " ")
+                            });
                         }
                     }
                 } else {
-                    System.out.println("No vehicle or content elements found on page");
-                    // Add a fallback entry
-                    allScrapedData.add(new String[]{mainPageTitle.replace(",", ""), "Page Content", "SwiftRide cars page loaded", "No specific vehicle data found"});
+                    System.out.println("No Honda vehicles found in search results");
+                    allScrapedData.add(new String[]{mainPageTitle.replace(",", ""), "Search Results", "No Honda vehicles found", "Search may have returned no results"});
                 }
                 
             } catch (Exception e) {
-                System.out.println("Error extracting vehicle information: " + e.getMessage());
-                allScrapedData.add(new String[]{mainPageTitle.replace(",", ""), "Error", "Failed to extract vehicles", e.getMessage()});
+                System.out.println("Error extracting Honda vehicle information: " + e.getMessage());
+                allScrapedData.add(new String[]{mainPageTitle.replace(",", ""), "Error", "Failed to extract Honda vehicles", e.getMessage().replace(",", " ")});
             }
 
             // === DATA PERSISTENCE: Export collected vehicle information ===
