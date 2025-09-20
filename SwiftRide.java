@@ -190,8 +190,8 @@ public class SwiftRide {
                 // Page-specific data extraction
                 if (i == 0) { // Home Page
                     extractHomePageData(driver, wait, multiPageData, pageTitle);
-                } else if (i == 1) { // About Page
-                    extractAboutPageData(driver, wait, multiPageData, pageTitle);
+                } else if (i == 1) { // How It Works Page
+                    extractHowItWorksPageData(driver, wait, multiPageData, pageTitle);
                 } else if (i == 2) { // Contact Page
                     extractContactPageData(driver, wait, multiPageData, pageTitle);
                 }
@@ -207,71 +207,102 @@ public class SwiftRide {
     
     private static void extractHomePageData(WebDriver driver, WebDriverWait wait, List<String[]> multiPageData, String pageTitle) {
         try {
-            // Look for featured cars or promotional content
-            List<WebElement> featuredItems = driver.findElements(By.xpath("//div[contains(@class, 'featured')] | //div[contains(@class, 'promo')] | //div[contains(@class, 'hero')] | //section"));
-            int itemCount = Math.min(3, featuredItems.size());
-            
-            for (int i = 0; i < itemCount; i++) {
-                try {
-                    WebElement item = featuredItems.get(i);
-                    String itemText = item.getText().trim();
-                    
-                    if (!itemText.isEmpty() && itemText.length() > 10) {
-                        String shortText = itemText.length() > 100 ? itemText.substring(0, 100) + "..." : itemText;
-                        multiPageData.add(new String[]{pageTitle.replace(",", ""), "Home Featured " + (i+1), shortText.replace(",", ""), ""});
-                        System.out.println("Found home feature: " + shortText);
-                    }
-                } catch (Exception e) {
-                    System.out.println("Error extracting home item " + (i+1) + ": " + e.getMessage());
-                }
+            // Look for the main hero heading "Drive Your Dreams Into Reality"
+            try {
+                WebElement heroText = driver.findElement(By.xpath("//h1[contains(text(), 'Drive Your Dreams')]"));
+                String heroContent = heroText.getText().trim();
+                multiPageData.add(new String[]{pageTitle.replace(",", ""), "Hero Text", heroContent.replace(",", ""), ""});
+                System.out.println("Found hero text: " + heroContent);
+            } catch (Exception e) {
+                System.out.println("Could not find hero text: " + e.getMessage());
             }
+            
+            // Look for the subtitle text about car subscription platform
+            try {
+                WebElement subtitle = driver.findElement(By.xpath("//p[contains(text(), 'car subscription platform')]"));
+                String subtitleText = subtitle.getText().trim();
+                if (subtitleText.length() > 50) {
+                    subtitleText = subtitleText.substring(0, 50) + "...";
+                }
+                multiPageData.add(new String[]{pageTitle.replace(",", ""), "Subtitle", subtitleText.replace(",", ""), ""});
+                System.out.println("Found subtitle: " + subtitleText);
+            } catch (Exception e) {
+                System.out.println("Could not find subtitle: " + e.getMessage());
+            }
+            
         } catch (Exception e) {
             System.out.println("Error extracting home page data: " + e.getMessage());
         }
     }
     
-    private static void extractAboutPageData(WebDriver driver, WebDriverWait wait, List<String[]> multiPageData, String pageTitle) {
+    private static void extractHowItWorksPageData(WebDriver driver, WebDriverWait wait, List<String[]> multiPageData, String pageTitle) {
         try {
-            // Look for about sections or company information
-            List<WebElement> aboutSections = driver.findElements(By.xpath("//p | //div[contains(@class, 'about')] | //div[contains(@class, 'content')] | //section"));
-            int sectionCount = 0;
+            // Look for the main heading
+            try {
+                WebElement mainHero = driver.findElement(By.xpath("//h1[contains(text(), 'couple')]"));
+                String heroText = mainHero.getText().trim();
+                multiPageData.add(new String[]{pageTitle.replace(",", ""), "Hero Section", heroText.replace(",", ""), ""});
+                System.out.println("Found hero text: " + heroText);
+            } catch (Exception e) {
+                System.out.println("Could not find hero section: " + e.getMessage());
+            }
             
-            for (WebElement section : aboutSections) {
+            // Extract step information (limit to 2 steps for demonstration)
+            List<WebElement> steps = driver.findElements(By.xpath("//h3[contains(text(), 'Apply') or contains(text(), 'Sign Agreement')]"));
+            int stepCount = Math.min(2, steps.size());
+            
+            for (int i = 0; i < stepCount; i++) {
                 try {
-                    String text = section.getText().trim();
-                    if (!text.isEmpty() && text.length() > 30 && text.length() < 300 && sectionCount < 3) {
-                        multiPageData.add(new String[]{pageTitle.replace(",", ""), "About Section " + (sectionCount+1), text.replace(",", ""), ""});
-                        System.out.println("Found about info: " + text.substring(0, Math.min(50, text.length())) + "...");
-                        sectionCount++;
-                    }
+                    WebElement step = steps.get(i);
+                    String stepTitle = step.getText().trim();
+                    multiPageData.add(new String[]{pageTitle.replace(",", ""), "Process Step " + (i+1), stepTitle.replace(",", ""), ""});
+                    System.out.println("Found step: " + stepTitle);
                 } catch (Exception e) {
-                    continue;
+                    System.out.println("Error extracting step " + (i+1) + ": " + e.getMessage());
                 }
             }
+            
         } catch (Exception e) {
-            System.out.println("Error extracting about page data: " + e.getMessage());
+            System.out.println("Error extracting how it works page data: " + e.getMessage());
         }
     }
     
     private static void extractContactPageData(WebDriver driver, WebDriverWait wait, List<String[]> multiPageData, String pageTitle) {
         try {
-            // Look for contact information
-            List<WebElement> contactInfo = driver.findElements(By.xpath("//div[contains(@class, 'contact')] | //address | //p[contains(text(), 'Phone') or contains(text(), 'Email') or contains(text(), 'Address')]"));
-            int contactCount = Math.min(5, contactInfo.size());
-            
-            for (int i = 0; i < contactCount; i++) {
-                try {
-                    WebElement contact = contactInfo.get(i);
-                    String contactText = contact.getText().trim();
-                    
-                    if (!contactText.isEmpty()) {
-                        multiPageData.add(new String[]{pageTitle.replace(",", ""), "Contact Info " + (i+1), contactText.replace(",", ""), ""});
-                        System.out.println("Found contact info: " + contactText);
-                    }
-                } catch (Exception e) {
-                    System.out.println("Error extracting contact info " + (i+1) + ": " + e.getMessage());
-                }
+            // Look for the main heading "How Can We Help?"
+            try {
+                WebElement mainHeading = driver.findElement(By.xpath("//h1[contains(text(), 'How Can We')]"));
+                String headingText = mainHeading.getText().trim();
+                multiPageData.add(new String[]{pageTitle.replace(",", ""), "Main Heading", headingText.replace(",", ""), ""});
+                System.out.println("Found main heading: " + headingText);
+            } catch (Exception e) {
+                System.out.println("Could not find main heading: " + e.getMessage());
             }
+            
+            // Look for email information
+            try {
+                WebElement emailLink = driver.findElement(By.xpath("//a[contains(@href, 'mailto:hello@swiftride.net')]"));
+                String emailText = emailLink.getText().trim();
+                multiPageData.add(new String[]{pageTitle.replace(",", ""), "Contact Email", emailText.replace(",", ""), ""});
+                System.out.println("Found email: " + emailText);
+            } catch (Exception e) {
+                System.out.println("Could not find email: " + e.getMessage());
+            }
+            
+            // Look for support section titles (limit to 2 for demonstration)
+            try {
+                List<WebElement> supportTitles = driver.findElements(By.xpath("//h3[contains(text(), 'Email Support') or contains(text(), 'Live Chat')]"));
+                int titleCount = Math.min(2, supportTitles.size());
+                
+                for (int i = 0; i < titleCount; i++) {
+                    String titleText = supportTitles.get(i).getText().trim();
+                    multiPageData.add(new String[]{pageTitle.replace(",", ""), "Support Option " + (i+1), titleText.replace(",", ""), ""});
+                    System.out.println("Found support option: " + titleText);
+                }
+            } catch (Exception e) {
+                System.out.println("Could not find support options: " + e.getMessage());
+            }
+            
         } catch (Exception e) {
             System.out.println("Error extracting contact page data: " + e.getMessage());
         }
